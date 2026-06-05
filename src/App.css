@@ -1,10 +1,14 @@
 .app-shell {
-  width: min(1100px, calc(100% - 32px));
+  width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
   padding: 32px 0 48px;
 }
 
 .app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   margin-bottom: 24px;
 }
 
@@ -21,7 +25,8 @@ h1 {
   line-height: 1.2;
 }
 
-button {
+button,
+.import-button {
   border: 1px solid #d0d5dd;
   border-radius: 7px;
   background: #ffffff;
@@ -36,9 +41,39 @@ button {
     color 0.2s ease;
 }
 
-button:hover {
+button:hover,
+.import-button:hover {
   background: #f9fafb;
   border-color: #98a2b3;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.import-button,
+.whatsapp-button {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.import-button:hover,
+.whatsapp-button:hover {
+  background: #115e59;
+  border-color: #115e59;
+}
+
+.import-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.import-button input {
+  display: none;
 }
 
 .supplier-tabs {
@@ -55,6 +90,15 @@ button:hover {
   font-weight: 700;
 }
 
+.status-message {
+  border: 1px solid #99f6e4;
+  border-radius: 7px;
+  background: #f0fdfa;
+  color: #134e4a;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+}
+
 .supplier-panel {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -64,7 +108,7 @@ button:hover {
 
 .supplier-summary {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr);
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr);
   align-items: center;
   gap: 16px;
   border-bottom: 1px solid #e5e7eb;
@@ -84,6 +128,32 @@ button:hover {
   font-size: 22px;
 }
 
+.supplier-details {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 18px;
+}
+
+.supplier-details label {
+  color: #475467;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 12px 18px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -91,7 +161,7 @@ button:hover {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 680px;
+  min-width: 900px;
 }
 
 th,
@@ -132,14 +202,42 @@ input:focus {
   outline: 3px solid rgba(15, 118, 110, 0.16);
 }
 
+.order-buttons {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .supplier-details,
+  .supplier-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 760px) {
   .app-shell {
-    width: min(100% - 20px, 1100px);
+    width: min(100% - 20px, 1180px);
     padding-top: 20px;
   }
 
+  .app-header,
+  .supplier-details,
   .supplier-summary {
     grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    align-items: stretch;
+  }
+
+  .actions-bar {
+    justify-content: stretch;
+  }
+
+  .actions-bar button,
+  .import-button {
+    width: 100%;
   }
 
   h1 {
