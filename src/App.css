@@ -1,14 +1,10 @@
 .app-shell {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1100px, calc(100% - 32px));
   margin: 0 auto;
   padding: 32px 0 48px;
 }
 
 .app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
   margin-bottom: 24px;
 }
 
@@ -25,8 +21,7 @@ h1 {
   line-height: 1.2;
 }
 
-button,
-.import-button {
+button {
   border: 1px solid #d0d5dd;
   border-radius: 7px;
   background: #ffffff;
@@ -41,48 +36,16 @@ button,
     color 0.2s ease;
 }
 
-button:hover,
-.import-button:hover {
+button:hover {
   background: #f9fafb;
   border-color: #98a2b3;
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.import-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #0f766e;
-  border-color: #0f766e;
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.import-button:hover {
-  background: #115e59;
-  border-color: #115e59;
-}
-
-.import-button input {
-  display: none;
-}
-
-.supplier-manager {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 18px;
 }
 
 .supplier-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-bottom: 18px;
 }
 
 .supplier-tabs button.active {
@@ -90,37 +53,6 @@ button:disabled {
   border-color: #111827;
   color: #ffffff;
   font-weight: 700;
-}
-
-.add-supplier {
-  display: flex;
-  gap: 8px;
-}
-
-input {
-  box-sizing: border-box;
-  width: 100%;
-  border: 1px solid #d0d5dd;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #111827;
-  font: inherit;
-  font-size: 14px;
-  padding: 8px 10px;
-}
-
-input:focus {
-  border-color: #0f766e;
-  outline: 3px solid rgba(15, 118, 110, 0.16);
-}
-
-.status-message {
-  border: 1px solid #99f6e4;
-  border-radius: 7px;
-  background: #f0fdfa;
-  color: #134e4a;
-  margin: 0 0 16px;
-  padding: 10px 12px;
 }
 
 .supplier-panel {
@@ -132,7 +64,7 @@ input:focus {
 
 .supplier-summary {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr);
   align-items: center;
   gap: 16px;
   border-bottom: 1px solid #e5e7eb;
@@ -152,34 +84,6 @@ input:focus {
   font-size: 22px;
 }
 
-.summary-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.whatsapp {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.whatsapp:hover {
-  background: #15803d;
-  border-color: #15803d;
-}
-
-.danger {
-  color: #b42318;
-}
-
-.danger:hover {
-  background: #fff1f0;
-  border-color: #fda29b;
-}
-
 .table-wrap {
   overflow-x: auto;
 }
@@ -187,13 +91,13 @@ input:focus {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 860px;
+  min-width: 680px;
 }
 
 th,
 td {
   border-bottom: 1px solid #eaecf0;
-  padding: 10px;
+  padding: 12px;
   text-align: right;
   vertical-align: middle;
 }
@@ -208,61 +112,34 @@ th {
 
 td:first-child,
 th:first-child {
-  width: 130px;
+  width: 140px;
 }
 
-td:nth-child(3),
-th:nth-child(3),
-td:nth-child(4),
-th:nth-child(4) {
-  width: 130px;
+input {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
 }
 
-.order-buttons {
-  display: flex;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.empty-state {
-  color: #667085;
-  margin: 0;
-  padding: 24px;
-  text-align: center;
+input:focus {
+  border-color: #0f766e;
+  outline: 3px solid rgba(15, 118, 110, 0.16);
 }
 
 @media (max-width: 760px) {
   .app-shell {
-    width: min(100% - 20px, 1180px);
+    width: min(100% - 20px, 1100px);
     padding-top: 20px;
   }
 
-  .app-header,
-  .supplier-manager,
   .supplier-summary {
     grid-template-columns: 1fr;
-  }
-
-  .app-header {
-    align-items: stretch;
-  }
-
-  .supplier-manager {
-    align-items: stretch;
-  }
-
-  .add-supplier,
-  .summary-actions {
-    justify-content: stretch;
-  }
-
-  .add-supplier {
-    flex-direction: column;
-  }
-
-  .summary-actions button,
-  .import-button {
-    width: 100%;
   }
 
   h1 {
