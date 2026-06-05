@@ -81,10 +81,9 @@ function calculateLineTotal(product) {
   return product.orderQty * product.cartonQty * product.price
 }
 
-function isHeaderRow(row, words) {
-  return words.some((word) =>
-    row.some((cell) => String(cell ?? '').trim().includes(word)),
-  )
+function isHeaderRow(row, headers) {
+  const firstCell = String(row[0] ?? '').trim()
+  return headers.includes(firstCell)
 }
 
 function normalizePhone(phone) {
@@ -299,7 +298,7 @@ function App() {
 
     const importedSuppliers = supplierRows
       .filter((row) => row.some((cell) => String(cell ?? '').trim()))
-      .filter((row) => !isHeaderRow(row, ['שם הספק', 'ספק']))
+      .filter((row) => !isHeaderRow(row, ['שם הספק']))
       .map(normalizeSupplierDetails)
       .filter((supplier) => supplier.name)
 
@@ -315,7 +314,7 @@ function App() {
         })
         const products = rows
           .filter((row) => row.some((cell) => String(cell ?? '').trim()))
-          .filter((row) => !isHeaderRow(row, ['שם מוצר', 'מוצר']))
+          .filter((row) => !isHeaderRow(row, ['שם מוצר', 'שם המוצר']))
           .map(normalizeProduct)
           .filter((product) => product.name)
 
