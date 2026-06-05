@@ -91,7 +91,8 @@ function App() {
     }
 
     return activeSupplier.products.reduce(
-      (total, product) => total + product.orderQty * product.price,
+      (total, product) =>
+        total + product.orderQty * product.cartonQty * product.price,
       0,
     )
   }, [activeSupplier])
@@ -154,7 +155,7 @@ function App() {
                 <tr>
                   <th>כמות להזמנה</th>
                   <th>שם מוצר</th>
-                  <th>מחיר קניה</th>
+                  <th>מחיר ליחידה</th>
                   <th>כמות בקרטון</th>
                 </tr>
               </thead>
