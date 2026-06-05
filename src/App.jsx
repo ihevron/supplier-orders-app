@@ -235,24 +235,16 @@ function App() {
       return ''
     }
 
+    const agentName = supplier.agentName || supplier.name
     const rows = orderedProducts.map(
-      (product) =>
-        `${product.name} | קרטונים: ${product.orderQty} | יח׳ בקרטון: ${product.cartonQty} | מחיר יחידה: ${formatCurrency(product.price)} | סה״כ: ${formatCurrency(calculateLineTotal(product))}`,
+      (product) => `${product.orderQty} ${product.name}`,
     )
 
     return [
-      'הזמנה חדשה - חברון שיווק סלטים בע״מ',
-      `ספק: ${supplier.name}`,
-      supplier.agentName ? `סוכן: ${supplier.agentName}` : '',
-      '',
+      `שלום ${agentName},`,
+      'הזמנה לחברון שיווק סלטים בע״מ:',
       ...rows,
-      '',
-      `סה״כ הזמנה: ${formatCurrency(
-        orderedProducts.reduce((total, product) => total + calculateLineTotal(product), 0),
-      )}`,
-    ]
-      .filter(Boolean)
-      .join('\n')
+    ].join('\n')
   }
 
   function sendWhatsAppOrder() {
