@@ -202,14 +202,19 @@ function App() {
     }))
   }
 
-  function moveProduct(productId, direction) {
+  function moveProductToPosition(productId, nextPosition) {
     updateActiveSupplier((supplier) => {
       const currentIndex = supplier.products.findIndex(
         (product) => product.id === productId,
       )
-      const nextIndex = currentIndex + direction
+      const nextIndex = Number(nextPosition) - 1
 
-      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= supplier.products.length) {
+      if (
+        currentIndex < 0 ||
+        nextIndex < 0 ||
+        nextIndex >= supplier.products.length ||
+        currentIndex === nextIndex
+      ) {
         return supplier
       }
 
@@ -450,10 +455,10 @@ function App() {
                 <tr>
                   <th>כמות להזמנה</th>
                   <th>שם מוצר</th>
-                  <th>מחיר ליחידה</th>
-                  <th>כמות בקרטון</th>
-                  <th>סה״כ שורה</th>
-                  <th>סדר</th>
+                  <th className="desktop-column">מחיר ליחידה</th>
+                  <th className="desktop-column">כמות בקרטון</th>
+                  <th className="desktop-column">סה״כ שורה</th>
+                  <th className="desktop-column">מיקום</th>
                 </tr>
               </thead>
               <tbody>
@@ -462,6 +467,8 @@ function App() {
                     <td>
                       <input
                         type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         min="0"
                         value={product.orderQty}
                         onChange={(event) =>
@@ -470,25 +477,42 @@ function App() {
                         aria-label={`כמות להזמנה עבור ${product.name}`}
                       />
                     </td>
-                    <td>{product.name}</td>
-                    <td>{formatCurrency(product.price)}</td>
-                    <td>{product.cartonQty}</td>
-                    <td>{formatCurrency(calculateLineTotal(product))}</td>
-                    <td className="order-buttons">
-                      <button
-                        type="button"
-                        onClick={() => moveProduct(product.id, -1)}
-                        disabled={index === 0}
+                    <td>
+                      <span>{product.name}</span>
+                      <label className="mobile-position-control">
+                        מיקום
+                        <select
+                          value={index + 1}
+                          onChange={(event) =>
+                            moveProductToPosition(product.id, event.target.value)
+                          }
+                          aria-label={`מיקום עבור ${product.name}`}
+                        >
+                          {activeSupplier.products.map((positionProduct, positionIndex) => (
+                            <option key={positionProduct.id} value={positionIndex + 1}>
+                              {positionIndex + 1}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </td>
+                    <td className="desktop-column">{formatCurrency(product.price)}</td>
+                    <td className="desktop-column">{product.cartonQty}</td>
+                    <td className="desktop-column">{formatCurrency(calculateLineTotal(product))}</td>
+                    <td className="desktop-column">
+                      <select
+                        value={index + 1}
+                        onChange={(event) =>
+                          moveProductToPosition(product.id, event.target.value)
+                        }
+                        aria-label={`מיקום עבור ${product.name}`}
                       >
-                        למעלה
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveProduct(product.id, 1)}
-                        disabled={index === activeSupplier.products.length - 1}
-                      >
-                        למטה
-                      </button>
+                        {activeSupplier.products.map((positionProduct, positionIndex) => (
+                          <option key={positionProduct.id} value={positionIndex + 1}>
+                            {positionIndex + 1}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                   </tr>
                 ))}
