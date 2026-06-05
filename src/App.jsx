@@ -4,6 +4,11 @@ import './App.css'
 
 const STORAGE_KEY = 'hevron-supplier-orders-v2'
 const SUPPLIERS_SHEET_NAME = 'ספקים'
+const emptyProductForm = {
+  name: '',
+  cartonQty: '',
+  price: '',
+}
 
 const initialSuppliers = [
   {
@@ -152,6 +157,8 @@ function App() {
     () => suppliers[0]?.id ?? '',
   )
   const [message, setMessage] = useState('')
+  const [newProduct, setNewProduct] = useState(emptyProductForm)
+  const [draggedProductId, setDraggedProductId] = useState('')
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(suppliers))
@@ -202,28 +209,62 @@ function App() {
     }))
   }
 
-  function moveProductToPosition(productId, nextPosition) {
-    updateActiveSupplier((supplier) => {
-      const currentIndex = supplier.products.findIndex(
-        (product) => product.id === productId,
-      )
-      const nextIndex = Number(nextPosition) - 1
+  function moveProductBefore(targetProductId) {
+    if (!draggedProductId || draggedProductId === targetProductId) {
+      return
+    }
 
-      if (
-        currentIndex < 0 ||
-        nextIndex < 0 ||
-        nextIndex >= supplier.products.length ||
-        currentIndex === nextIndex
-      ) {
+    updateActiveSupplier((supplier) => {
+      const draggedIndex = supplier.products.findIndex(
+        (product) => product.id === draggedProductId,
+      )
+      const targetIndex = supplier.products.findIndex(
+        (product) => product.id === targetProductId,
+      )
+
+      if (draggedIndex < 0 || targetIndex < 0 || draggedIndex === targetIndex) {
         return supplier
       }
 
       const products = [...supplier.products]
-      const [product] = products.splice(currentIndex, 1)
-      products.splice(nextIndex, 0, product)
+      const [draggedProduct] = products.splice(draggedIndex, 1)
+      products.splice(targetIndex, 0, draggedProduct)
 
       return { ...supplier, products }
     })
+  }
+
+  function addProduct(event) {
+    event.preventDefault()
+
+    const name = newProduct.name.trim()
+
+    if (!name) {
+      setMessage('יש להזין שם מוצר.')
+      return
+    }
+
+    const product = {
+      id: createId('product'),
+      name,
+      cartonQty: Math.max(0, parseNumber(newProduct.cartonQty)),
+      price: Math.max(0, parseNumber(newProduct.price)),
+      orderQty: 0,
+    }
+
+    updateActiveSupplier((supplier) => ({
+      ...supplier,
+      products: [...supplier.products, product],
+    }))
+    setNewProduct(emptyProductForm)
+    setMessage('המוצר נוסף לספק הנוכחי.')
+  }
+
+  function deleteProduct(productId) {
+    updateActiveSupplier((supplier) => ({
+      ...supplier,
+      products: supplier.products.filter((product) => product.id !== productId),
+    }))
   }
 
   function resetQuantities() {
@@ -440,6 +481,46 @@ function App() {
             </label>
           </div>
 
+          <form className="add-product-form" onSubmit={addProduct}>
+            <label>
+              שם מוצר
+              <input
+                type="text"
+                value={newProduct.name}
+                onChange={(event) =>
+                  setNewProduct((current) => ({ ...current, name: event.target.value }))
+                }
+                placeholder="שם מוצר חדש"
+              />
+            </label>
+            <label>
+              כמות בקרטון
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                value={newProduct.cartonQty}
+                onChange={(event) =>
+                  setNewProduct((current) => ({ ...current, cartonQty: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              מחיר ליחידה
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={newProduct.price}
+                onChange={(event) =>
+                  setNewProduct((current) => ({ ...current, price: event.target.value }))
+                }
+              />
+            </label>
+            <button type="submit">הוסף מוצר</button>
+          </form>
+
           <div className="actions-bar">
             <button type="button" onClick={resetQuantities}>
               איפוס כמויות
@@ -458,12 +539,20 @@ function App() {
                   <th className="desktop-column">מחיר ליחידה</th>
                   <th className="desktop-column">כמות בקרטון</th>
                   <th className="desktop-column">סה״כ שורה</th>
-                  <th className="desktop-column">מיקום</th>
+                  <th className="desktop-column">פעולות</th>
                 </tr>
               </thead>
               <tbody>
-                {activeSupplier.products.map((product, index) => (
-                  <tr key={product.id}>
+                {activeSupplier.products.map((product) => (
+                  <tr
+                    key={product.id}
+                    className={draggedProductId === product.id ? 'dragging-row' : ''}
+                    draggable
+                    onDragStart={() => setDraggedProductId(product.id)}
+                    onDragEnter={() => moveProductBefore(product.id)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDragEnd={() => setDraggedProductId('')}
+                  >
                     <td>
                       <input
                         type="number"
@@ -478,41 +567,36 @@ function App() {
                       />
                     </td>
                     <td>
-                      <span>{product.name}</span>
-                      <label className="mobile-position-control">
-                        מיקום
-                        <select
-                          value={index + 1}
-                          onChange={(event) =>
-                            moveProductToPosition(product.id, event.target.value)
-                          }
-                          aria-label={`מיקום עבור ${product.name}`}
+                      <div className="product-name-cell">
+                        <span className="drag-handle" aria-hidden="true">
+                          גרור
+                        </span>
+                        <span>{product.name}</span>
+                        <button
+                          type="button"
+                          className="delete-product mobile-delete"
+                          onClick={() => deleteProduct(product.id)}
                         >
-                          {activeSupplier.products.map((positionProduct, positionIndex) => (
-                            <option key={positionProduct.id} value={positionIndex + 1}>
-                              {positionIndex + 1}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                          מחק
+                        </button>
+                      </div>
                     </td>
                     <td className="desktop-column">{formatCurrency(product.price)}</td>
                     <td className="desktop-column">{product.cartonQty}</td>
                     <td className="desktop-column">{formatCurrency(calculateLineTotal(product))}</td>
                     <td className="desktop-column">
-                      <select
-                        value={index + 1}
-                        onChange={(event) =>
-                          moveProductToPosition(product.id, event.target.value)
-                        }
-                        aria-label={`מיקום עבור ${product.name}`}
-                      >
-                        {activeSupplier.products.map((positionProduct, positionIndex) => (
-                          <option key={positionProduct.id} value={positionIndex + 1}>
-                            {positionIndex + 1}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="row-actions">
+                        <span className="drag-handle" aria-hidden="true">
+                          גרור
+                        </span>
+                        <button
+                          type="button"
+                          className="delete-product"
+                          onClick={() => deleteProduct(product.id)}
+                        >
+                          מחק
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
