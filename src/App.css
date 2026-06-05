@@ -185,7 +185,8 @@ th:first-child {
   width: 140px;
 }
 
-input {
+input,
+select {
   box-sizing: border-box;
   width: 100%;
   border: 1px solid #d0d5dd;
@@ -197,15 +198,14 @@ input {
   padding: 8px 10px;
 }
 
-input:focus {
+input:focus,
+select:focus {
   border-color: #0f766e;
   outline: 3px solid rgba(15, 118, 110, 0.16);
 }
 
-.order-buttons {
-  display: flex;
-  gap: 6px;
-  white-space: nowrap;
+.mobile-position-control {
+  display: none;
 }
 
 @media (max-width: 900px) {
@@ -222,7 +222,6 @@ input:focus {
   }
 
   .app-header,
-  .supplier-details,
   .supplier-summary {
     grid-template-columns: 1fr;
   }
@@ -231,13 +230,59 @@ input:focus {
     align-items: stretch;
   }
 
+  .import-button,
+  .supplier-details,
+  .desktop-column {
+    display: none;
+  }
+
+  .supplier-summary {
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .supplier-summary strong {
+    font-size: 18px;
+  }
+
   .actions-bar {
     justify-content: stretch;
   }
 
-  .actions-bar button,
-  .import-button {
+  .actions-bar button {
     width: 100%;
+  }
+
+  .table-wrap {
+    overflow-x: visible;
+  }
+
+  table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  th,
+  td {
+    padding: 10px 8px;
+  }
+
+  td:first-child,
+  th:first-child {
+    width: 96px;
+  }
+
+  .mobile-position-control {
+    color: #667085;
+    display: grid;
+    font-size: 12px;
+    gap: 4px;
+    margin-top: 8px;
+    max-width: 92px;
+  }
+
+  .mobile-position-control select {
+    padding: 6px 8px;
   }
 
   h1 {
