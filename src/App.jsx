@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import * as XLSX from 'xlsx'
 import './App.css'
 
-const STORAGE_KEY = 'hevron-supplier-orders-v1'
+const STORAGE_KEY = 'hevron-supplier-orders-v2'
+const SUPPLIERS_SHEET_NAME = 'ספקים'
 
 const initialSuppliers = [
   {
     id: 'supplier-1',
     name: 'ספק לדוגמה',
+    agentName: 'שם סוכן',
+    phone: '0500000000',
+    deliveryDay: 'ראשון',
+    reminderTime: '09:00',
     products: [
       {
         id: 'product-1',
@@ -27,6 +33,10 @@ const initialSuppliers = [
   {
     id: 'supplier-2',
     name: 'ספק נוסף',
+    agentName: '',
+    phone: '',
+    deliveryDay: 'שלישי',
+    reminderTime: '11:30',
     products: [
       {
         id: 'product-3',
@@ -46,6 +56,10 @@ const initialSuppliers = [
   },
 ]
 
+function createId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
 function parseNumber(value) {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0
@@ -63,11 +77,74 @@ function formatCurrency(value) {
   }).format(value)
 }
 
+function calculateLineTotal(product) {
+  return product.orderQty * product.cartonQty * product.price
+}
+
+function isHeaderRow(row, words) {
+  return words.some((word) =>
+    row.some((cell) => String(cell ?? '').trim().includes(word)),
+  )
+}
+
+function normalizePhone(phone) {
+  const digits = String(phone ?? '').replace(/[^\d]/g, '')
+
+  if (digits.startsWith('972')) {
+    return digits
+  }
+
+  if (digits.startsWith('0')) {
+    return `972${digits.slice(1)}`
+  }
+
+  return digits
+}
+
+function normalizeProduct(row, index) {
+  return {
+    id: createId(`product-${index}`),
+    name: String(row[0] ?? '').trim(),
+    cartonQty: parseNumber(row[1]),
+    price: parseNumber(row[2]),
+    orderQty: 0,
+  }
+}
+
+function normalizeSupplierDetails(row, index) {
+  return {
+    id: createId(`supplier-${index}`),
+    name: String(row[0] ?? '').trim(),
+    agentName: String(row[1] ?? '').trim(),
+    phone: String(row[2] ?? '').trim(),
+    deliveryDay: String(row[3] ?? '').trim(),
+    reminderTime: String(row[4] ?? '').trim(),
+    products: [],
+  }
+}
+
+function normalizeSavedSuppliers(suppliers) {
+  return suppliers.map((supplier) => ({
+    agentName: '',
+    phone: '',
+    deliveryDay: '',
+    reminderTime: '',
+    products: [],
+    ...supplier,
+    products: (supplier.products ?? []).map((product) => ({
+      cartonQty: 0,
+      price: 0,
+      orderQty: 0,
+      ...product,
+    })),
+  }))
+}
+
 function App() {
   const [suppliers, setSuppliers] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
-      return saved ? JSON.parse(saved) : initialSuppliers
+      return saved ? normalizeSavedSuppliers(JSON.parse(saved)) : initialSuppliers
     } catch {
       return initialSuppliers
     }
@@ -75,10 +152,17 @@ function App() {
   const [activeSupplierId, setActiveSupplierId] = useState(
     () => suppliers[0]?.id ?? '',
   )
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(suppliers))
   }, [suppliers])
+
+  useEffect(() => {
+    if (!suppliers.some((supplier) => supplier.id === activeSupplierId)) {
+      setActiveSupplierId(suppliers[0]?.id ?? '')
+    }
+  }, [activeSupplierId, suppliers])
 
   const activeSupplier = useMemo(
     () => suppliers.find((supplier) => supplier.id === activeSupplierId),
@@ -91,36 +175,198 @@ function App() {
     }
 
     return activeSupplier.products.reduce(
-      (total, product) =>
-        total + product.orderQty * product.cartonQty * product.price,
+      (total, product) => total + calculateLineTotal(product),
       0,
     )
   }, [activeSupplier])
 
+  function updateActiveSupplier(updater) {
+    setSuppliers((currentSuppliers) =>
+      currentSuppliers.map((supplier) =>
+        supplier.id === activeSupplierId ? updater(supplier) : supplier,
+      ),
+    )
+  }
+
+  function updateSupplierField(field, value) {
+    updateActiveSupplier((supplier) => ({ ...supplier, [field]: value }))
+  }
+
   function updateOrderQuantity(productId, value) {
     const orderQty = Math.max(0, parseNumber(value))
 
-    setSuppliers((currentSuppliers) =>
-      currentSuppliers.map((supplier) => {
-        if (supplier.id !== activeSupplierId) {
-          return supplier
+    updateActiveSupplier((supplier) => ({
+      ...supplier,
+      products: supplier.products.map((product) =>
+        product.id === productId ? { ...product, orderQty } : product,
+      ),
+    }))
+  }
+
+  function moveProduct(productId, direction) {
+    updateActiveSupplier((supplier) => {
+      const currentIndex = supplier.products.findIndex(
+        (product) => product.id === productId,
+      )
+      const nextIndex = currentIndex + direction
+
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= supplier.products.length) {
+        return supplier
+      }
+
+      const products = [...supplier.products]
+      const [product] = products.splice(currentIndex, 1)
+      products.splice(nextIndex, 0, product)
+
+      return { ...supplier, products }
+    })
+  }
+
+  function resetQuantities() {
+    updateActiveSupplier((supplier) => ({
+      ...supplier,
+      products: supplier.products.map((product) => ({ ...product, orderQty: 0 })),
+    }))
+  }
+
+  function buildWhatsAppMessage(supplier) {
+    const orderedProducts = supplier.products.filter((product) => product.orderQty > 0)
+
+    if (orderedProducts.length === 0) {
+      return ''
+    }
+
+    const rows = orderedProducts.map(
+      (product) =>
+        `${product.name} | קרטונים: ${product.orderQty} | יח׳ בקרטון: ${product.cartonQty} | מחיר יחידה: ${formatCurrency(product.price)} | סה״כ: ${formatCurrency(calculateLineTotal(product))}`,
+    )
+
+    return [
+      'הזמנה חדשה - חברון שיווק סלטים בע״מ',
+      `ספק: ${supplier.name}`,
+      supplier.agentName ? `סוכן: ${supplier.agentName}` : '',
+      '',
+      ...rows,
+      '',
+      `סה״כ הזמנה: ${formatCurrency(
+        orderedProducts.reduce((total, product) => total + calculateLineTotal(product), 0),
+      )}`,
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  function sendWhatsAppOrder() {
+    if (!activeSupplier) {
+      return
+    }
+
+    const text = buildWhatsAppMessage(activeSupplier)
+
+    if (!text) {
+      setMessage('אין מוצרים עם כמות להזמנה גדולה מ־0.')
+      return
+    }
+
+    const phone = normalizePhone(activeSupplier.phone)
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`
+
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  async function importExcel(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) {
+      return
+    }
+
+    const buffer = await file.arrayBuffer()
+    const workbook = XLSX.read(buffer, { type: 'array' })
+    const suppliersSheetName = workbook.SheetNames.find(
+      (sheetName) => sheetName.trim() === SUPPLIERS_SHEET_NAME,
+    )
+
+    const supplierRows = suppliersSheetName
+      ? XLSX.utils.sheet_to_json(workbook.Sheets[suppliersSheetName], {
+          header: 1,
+          defval: '',
+        })
+      : []
+
+    const importedSuppliers = supplierRows
+      .filter((row) => row.some((cell) => String(cell ?? '').trim()))
+      .filter((row) => !isHeaderRow(row, ['שם הספק', 'ספק']))
+      .map(normalizeSupplierDetails)
+      .filter((supplier) => supplier.name)
+
+    const supplierMap = new Map(
+      importedSuppliers.map((supplier) => [supplier.name.trim(), supplier]),
+    )
+
+    workbook.SheetNames.filter((sheetName) => sheetName !== suppliersSheetName).forEach(
+      (sheetName) => {
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+          header: 1,
+          defval: '',
+        })
+        const products = rows
+          .filter((row) => row.some((cell) => String(cell ?? '').trim()))
+          .filter((row) => !isHeaderRow(row, ['שם מוצר', 'מוצר']))
+          .map(normalizeProduct)
+          .filter((product) => product.name)
+
+        if (products.length === 0) {
+          return
         }
 
-        return {
-          ...supplier,
-          products: supplier.products.map((product) =>
-            product.id === productId ? { ...product, orderQty } : product,
-          ),
+        const existingSupplier = supplierMap.get(sheetName.trim())
+
+        if (existingSupplier) {
+          existingSupplier.products = products
+          return
         }
-      }),
+
+        supplierMap.set(sheetName.trim(), {
+          id: createId('supplier'),
+          name: sheetName.trim(),
+          agentName: '',
+          phone: '',
+          deliveryDay: '',
+          reminderTime: '',
+          products,
+        })
+      },
     )
+
+    const nextSuppliers = Array.from(supplierMap.values()).filter(
+      (supplier) => supplier.name && supplier.products.length > 0,
+    )
+
+    if (nextSuppliers.length === 0) {
+      setMessage('לא נמצאו ספקים ומוצרים לייבוא בקובץ.')
+      return
+    }
+
+    setSuppliers(nextSuppliers)
+    setActiveSupplierId(nextSuppliers[0].id)
+    setMessage(`יובאו ${nextSuppliers.length} ספקים מהאקסל.`)
   }
 
   return (
     <main className="app-shell">
       <header className="app-header">
-        <p className="eyebrow">חברון שיווק סלטים בע״מ</p>
-        <h1>הזמנות ספקים</h1>
+        <div>
+          <p className="eyebrow">חברון שיווק סלטים בע״מ</p>
+          <h1>הזמנות ספקים</h1>
+        </div>
+        <label className="import-button">
+          ייבוא מאקסל
+          <input type="file" accept=".xlsx,.xls" onChange={importExcel} />
+        </label>
       </header>
 
       <nav className="supplier-tabs" aria-label="ספקים">
@@ -136,6 +382,8 @@ function App() {
         ))}
       </nav>
 
+      {message && <p className="status-message">{message}</p>}
+
       {activeSupplier && (
         <section className="supplier-panel">
           <div className="supplier-summary">
@@ -144,9 +392,65 @@ function App() {
               <strong>{activeSupplier.name}</strong>
             </div>
             <div>
+              <span>סוכן</span>
+              <strong>{activeSupplier.agentName || 'לא הוגדר'}</strong>
+            </div>
+            <div>
               <span>סכום הזמנה</span>
               <strong>{formatCurrency(orderTotal)}</strong>
             </div>
+          </div>
+
+          <div className="supplier-details">
+            <label>
+              שם הספק
+              <input
+                type="text"
+                value={activeSupplier.name}
+                onChange={(event) => updateSupplierField('name', event.target.value)}
+              />
+            </label>
+            <label>
+              שם הסוכן
+              <input
+                type="text"
+                value={activeSupplier.agentName}
+                onChange={(event) => updateSupplierField('agentName', event.target.value)}
+              />
+            </label>
+            <label>
+              טלפון WhatsApp
+              <input
+                type="tel"
+                value={activeSupplier.phone}
+                onChange={(event) => updateSupplierField('phone', event.target.value)}
+              />
+            </label>
+            <label>
+              יום אספקה
+              <input
+                type="text"
+                value={activeSupplier.deliveryDay}
+                onChange={(event) => updateSupplierField('deliveryDay', event.target.value)}
+              />
+            </label>
+            <label>
+              שעה לתזכורת
+              <input
+                type="time"
+                value={activeSupplier.reminderTime}
+                onChange={(event) => updateSupplierField('reminderTime', event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="actions-bar">
+            <button type="button" onClick={resetQuantities}>
+              איפוס כמויות
+            </button>
+            <button type="button" className="whatsapp-button" onClick={sendWhatsAppOrder}>
+              שליחת הזמנה ל־WhatsApp
+            </button>
           </div>
 
           <div className="table-wrap">
@@ -157,10 +461,12 @@ function App() {
                   <th>שם מוצר</th>
                   <th>מחיר ליחידה</th>
                   <th>כמות בקרטון</th>
+                  <th>סה״כ שורה</th>
+                  <th>סדר</th>
                 </tr>
               </thead>
               <tbody>
-                {activeSupplier.products.map((product) => (
+                {activeSupplier.products.map((product, index) => (
                   <tr key={product.id}>
                     <td>
                       <input
@@ -176,6 +482,23 @@ function App() {
                     <td>{product.name}</td>
                     <td>{formatCurrency(product.price)}</td>
                     <td>{product.cartonQty}</td>
+                    <td>{formatCurrency(calculateLineTotal(product))}</td>
+                    <td className="order-buttons">
+                      <button
+                        type="button"
+                        onClick={() => moveProduct(product.id, -1)}
+                        disabled={index === 0}
+                      >
+                        למעלה
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveProduct(product.id, 1)}
+                        disabled={index === activeSupplier.products.length - 1}
+                      >
+                        למטה
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
