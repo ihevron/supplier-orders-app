@@ -158,6 +158,7 @@ function App() {
   )
   const [message, setMessage] = useState('')
   const [newProduct, setNewProduct] = useState(emptyProductForm)
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false)
   const [draggedProductId, setDraggedProductId] = useState('')
 
   useEffect(() => {
@@ -234,6 +235,11 @@ function App() {
     })
   }
 
+  function closeAddProductModal() {
+    setNewProduct(emptyProductForm)
+    setIsAddProductOpen(false)
+  }
+
   function addProduct(event) {
     event.preventDefault()
 
@@ -257,6 +263,7 @@ function App() {
       products: [...supplier.products, product],
     }))
     setNewProduct(emptyProductForm)
+    setIsAddProductOpen(false)
     setMessage('המוצר נוסף לספק הנוכחי.')
   }
 
@@ -481,47 +488,10 @@ function App() {
             </label>
           </div>
 
-          <form className="add-product-form" onSubmit={addProduct}>
-            <label>
-              שם מוצר
-              <input
-                type="text"
-                value={newProduct.name}
-                onChange={(event) =>
-                  setNewProduct((current) => ({ ...current, name: event.target.value }))
-                }
-                placeholder="שם מוצר חדש"
-              />
-            </label>
-            <label>
-              כמות בקרטון
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                value={newProduct.cartonQty}
-                onChange={(event) =>
-                  setNewProduct((current) => ({ ...current, cartonQty: event.target.value }))
-                }
-              />
-            </label>
-            <label>
-              מחיר ליחידה
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.01"
-                value={newProduct.price}
-                onChange={(event) =>
-                  setNewProduct((current) => ({ ...current, price: event.target.value }))
-                }
-              />
-            </label>
-            <button type="submit">הוסף מוצר</button>
-          </form>
-
           <div className="actions-bar">
+            <button type="button" onClick={() => setIsAddProductOpen(true)}>
+              הוסף מוצר
+            </button>
             <button type="button" onClick={resetQuantities}>
               איפוס כמויות
             </button>
@@ -534,6 +504,7 @@ function App() {
             <table>
               <thead>
                 <tr>
+                  <th className="desktop-column drag-column" aria-label="סידור מוצרים"></th>
                   <th>כמות להזמנה</th>
                   <th>שם מוצר</th>
                   <th className="desktop-column">מחיר ליחידה</th>
@@ -553,6 +524,19 @@ function App() {
                     onDragOver={(event) => event.preventDefault()}
                     onDragEnd={() => setDraggedProductId('')}
                   >
+                    <td className="desktop-column drag-column">
+                      <span className="drag-handle" aria-label="גרירת מוצר" title="גרירת מוצר">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </span>
+                    </td>
                     <td>
                       <input
                         type="number"
@@ -566,37 +550,18 @@ function App() {
                         aria-label={`כמות להזמנה עבור ${product.name}`}
                       />
                     </td>
-                    <td>
-                      <div className="product-name-cell">
-                        <span className="drag-handle" aria-hidden="true">
-                          גרור
-                        </span>
-                        <span>{product.name}</span>
-                        <button
-                          type="button"
-                          className="delete-product mobile-delete"
-                          onClick={() => deleteProduct(product.id)}
-                        >
-                          מחק
-                        </button>
-                      </div>
-                    </td>
+                    <td>{product.name}</td>
                     <td className="desktop-column">{formatCurrency(product.price)}</td>
                     <td className="desktop-column">{product.cartonQty}</td>
                     <td className="desktop-column">{formatCurrency(calculateLineTotal(product))}</td>
                     <td className="desktop-column">
-                      <div className="row-actions">
-                        <span className="drag-handle" aria-hidden="true">
-                          גרור
-                        </span>
-                        <button
-                          type="button"
-                          className="delete-product"
-                          onClick={() => deleteProduct(product.id)}
-                        >
-                          מחק
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="delete-product"
+                        onClick={() => deleteProduct(product.id)}
+                      >
+                        מחק
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -604,6 +569,72 @@ function App() {
             </table>
           </div>
         </section>
+      )}
+
+      {isAddProductOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={closeAddProductModal}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-product-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2 id="add-product-title">הוספת מוצר</h2>
+              <button type="button" className="icon-button" onClick={closeAddProductModal}>
+                סגור
+              </button>
+            </div>
+            <form className="add-product-form" onSubmit={addProduct}>
+              <label>
+                שם מוצר
+                <input
+                  type="text"
+                  value={newProduct.name}
+                  onChange={(event) =>
+                    setNewProduct((current) => ({ ...current, name: event.target.value }))
+                  }
+                  placeholder="שם מוצר חדש"
+                  autoFocus
+                />
+              </label>
+              <label>
+                כמות בקרטון
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  value={newProduct.cartonQty}
+                  onChange={(event) =>
+                    setNewProduct((current) => ({ ...current, cartonQty: event.target.value }))
+                  }
+                />
+              </label>
+              <label>
+                מחיר ליחידה
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={newProduct.price}
+                  onChange={(event) =>
+                    setNewProduct((current) => ({ ...current, price: event.target.value }))
+                  }
+                />
+              </label>
+              <div className="modal-actions">
+                <button type="button" onClick={closeAddProductModal}>
+                  ביטול
+                </button>
+                <button type="submit" className="whatsapp-button">
+                  הוסף מוצר
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
       )}
     </main>
   )
