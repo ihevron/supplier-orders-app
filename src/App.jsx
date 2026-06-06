@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
+import { isSupabaseConfigured, supabase } from './supabaseClient'
 import './App.css'
 
 const STORAGE_KEY = 'hevron-supplier-orders-v2'
+const REMOTE_STATE_ID = 'supplier-orders'
 const SUPPLIERS_SHEET_NAME = 'ספקים'
 const emptyProductForm = {
   name: '',
@@ -144,26 +146,99 @@ function normalizeSavedSuppliers(suppliers) {
   }))
 }
 
+function loadLocalSuppliers() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    return saved ? normalizeSavedSuppliers(JSON.parse(saved)) : initialSuppliers
+  } catch {
+    return initialSuppliers
+  }
+}
+
 function App() {
-  const [suppliers, setSuppliers] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      return saved ? normalizeSavedSuppliers(JSON.parse(saved)) : initialSuppliers
-    } catch {
-      return initialSuppliers
-    }
-  })
+  const [suppliers, setSuppliers] = useState(loadLocalSuppliers)
   const [activeSupplierId, setActiveSupplierId] = useState(
     () => suppliers[0]?.id ?? '',
   )
   const [message, setMessage] = useState('')
+  const [syncStatus, setSyncStatus] = useState(
+    isSupabaseConfigured
+      ? 'מתחבר ל-Supabase...'
+      : 'שמירה מקומית בלבד - חסרים משתני Supabase.',
+  )
+  const [isRemoteLoaded, setIsRemoteLoaded] = useState(!isSupabaseConfigured)
   const [newProduct, setNewProduct] = useState(emptyProductForm)
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
   const [draggedProductId, setDraggedProductId] = useState('')
 
   useEffect(() => {
+    let isMounted = true
+
+    async function loadRemoteState() {
+      if (!supabase) {
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('app_state')
+        .select('data')
+        .eq('id', REMOTE_STATE_ID)
+        .maybeSingle()
+
+      if (!isMounted) {
+        return
+      }
+
+      if (error) {
+        setSyncStatus('שגיאה בטעינה מ-Supabase - עובדים כרגע עם שמירה מקומית.')
+        setIsRemoteLoaded(true)
+        return
+      }
+
+      const remoteSuppliers = data?.data?.suppliers
+
+      if (Array.isArray(remoteSuppliers) && remoteSuppliers.length > 0) {
+        const nextSuppliers = normalizeSavedSuppliers(remoteSuppliers)
+        setSuppliers(nextSuppliers)
+        setActiveSupplierId(nextSuppliers[0]?.id ?? '')
+        setSyncStatus('נטען וסונכרן מ-Supabase.')
+      } else {
+        setSyncStatus('אין עדיין נתונים בענן - השינוי הבא יישמר ל-Supabase.')
+      }
+
+      setIsRemoteLoaded(true)
+    }
+
+    loadRemoteState()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(suppliers))
-  }, [suppliers])
+
+    if (!supabase || !isRemoteLoaded) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      const { error } = await supabase.from('app_state').upsert({
+        id: REMOTE_STATE_ID,
+        data: { suppliers },
+        updated_at: new Date().toISOString(),
+      })
+
+      setSyncStatus(
+        error
+          ? 'שגיאה בשמירה ל-Supabase - השינויים נשמרו מקומית בלבד.'
+          : 'נשמר וסונכרן ל-Supabase.',
+      )
+    }, 600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [isRemoteLoaded, suppliers])
 
   useEffect(() => {
     if (!suppliers.some((supplier) => supplier.id === activeSupplierId)) {
@@ -432,6 +507,7 @@ function App() {
         ))}
       </nav>
 
+      {syncStatus && <p className="sync-message">{syncStatus}</p>}
       {message && <p className="status-message">{message}</p>}
 
       {activeSupplier && (
