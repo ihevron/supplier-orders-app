@@ -210,6 +210,12 @@ function App() {
     }))
   }
 
+  function selectZeroQuantity(event) {
+    if (event.target.value === '0') {
+      event.target.select()
+    }
+  }
+
   function moveProductBefore(targetProductId) {
     if (!draggedProductId || draggedProductId === targetProductId) {
       return
@@ -547,6 +553,7 @@ function App() {
                         onChange={(event) =>
                           updateOrderQuantity(product.id, event.target.value)
                         }
+                        onFocus={selectZeroQuantity}
                         aria-label={`כמות להזמנה עבור ${product.name}`}
                       />
                     </td>
