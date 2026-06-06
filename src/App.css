@@ -97,13 +97,24 @@ button:disabled {
   font-weight: 700;
 }
 
-.status-message {
-  border: 1px solid #99f6e4;
+.status-message,
+.sync-message {
   border-radius: 7px;
-  background: #f0fdfa;
-  color: #134e4a;
   margin: 0 0 16px;
   padding: 10px 12px;
+}
+
+.status-message {
+  border: 1px solid #99f6e4;
+  background: #f0fdfa;
+  color: #134e4a;
+}
+
+.sync-message {
+  border: 1px solid #d0d5dd;
+  background: #f9fafb;
+  color: #475467;
+  font-size: 13px;
 }
 
 .supplier-panel {
