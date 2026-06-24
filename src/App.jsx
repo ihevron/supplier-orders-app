@@ -11,6 +11,13 @@ const emptyProductForm = {
   cartonQty: '',
   price: '',
 }
+const emptySupplierForm = {
+  name: '',
+  agentName: '',
+  phone: '',
+  deliveryDay: '',
+  reminderTime: '',
+}
 
 const initialSuppliers = [
   {
@@ -167,8 +174,11 @@ function App() {
       : 'שמירה מקומית בלבד - חסרים משתני Supabase.',
   )
   const [isRemoteLoaded, setIsRemoteLoaded] = useState(!isSupabaseConfigured)
-  const [newProduct, setNewProduct] = useState(emptyProductForm)
-  const [isAddProductOpen, setIsAddProductOpen] = useState(false)
+  const [productForm, setProductForm] = useState(emptyProductForm)
+  const [editingProductId, setEditingProductId] = useState('')
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [supplierForm, setSupplierForm] = useState(emptySupplierForm)
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false)
   const [draggedProductId, setDraggedProductId] = useState('')
 
   useEffect(() => {
@@ -251,6 +261,14 @@ function App() {
     [activeSupplierId, suppliers],
   )
 
+  const editingProduct = useMemo(() => {
+    if (!activeSupplier || !editingProductId) {
+      return null
+    }
+
+    return activeSupplier.products.find((product) => product.id === editingProductId) ?? null
+  }, [activeSupplier, editingProductId])
+
   const orderTotal = useMemo(() => {
     if (!activeSupplier) {
       return 0
@@ -316,43 +334,153 @@ function App() {
     })
   }
 
-  function closeAddProductModal() {
-    setNewProduct(emptyProductForm)
-    setIsAddProductOpen(false)
+  function openAddSupplierModal() {
+    setSupplierForm(emptySupplierForm)
+    setIsSupplierModalOpen(true)
   }
 
-  function addProduct(event) {
+  function closeSupplierModal() {
+    setSupplierForm(emptySupplierForm)
+    setIsSupplierModalOpen(false)
+  }
+
+  function addSupplier(event) {
     event.preventDefault()
 
-    const name = newProduct.name.trim()
+    const name = supplierForm.name.trim()
+
+    if (!name) {
+      setMessage('יש להזין שם ספק.')
+      return
+    }
+
+    const supplier = {
+      id: createId('supplier'),
+      name,
+      agentName: supplierForm.agentName.trim(),
+      phone: supplierForm.phone.trim(),
+      deliveryDay: supplierForm.deliveryDay.trim(),
+      reminderTime: supplierForm.reminderTime,
+      products: [],
+    }
+
+    setSuppliers((currentSuppliers) => [...currentSuppliers, supplier])
+    setActiveSupplierId(supplier.id)
+    closeSupplierModal()
+    setMessage('הספק נוסף. אפשר להוסיף לו מוצרים או לייבא אותם מאקסל.')
+  }
+
+  function deleteActiveSupplier() {
+    if (!activeSupplier) {
+      return
+    }
+
+    if (suppliers.length <= 1) {
+      setMessage('לא ניתן למחוק את הספק האחרון.')
+      return
+    }
+
+    if (!window.confirm(`למחוק את הספק ${activeSupplier.name}?`)) {
+      return
+    }
+
+    const activeIndex = suppliers.findIndex((supplier) => supplier.id === activeSupplierId)
+    const nextSuppliers = suppliers.filter((supplier) => supplier.id !== activeSupplierId)
+    const nextActiveSupplier = nextSuppliers[Math.max(0, activeIndex - 1)] ?? nextSuppliers[0]
+
+    setSuppliers(nextSuppliers)
+    setActiveSupplierId(nextActiveSupplier?.id ?? '')
+    setMessage('הספק נמחק.')
+  }
+
+  function openAddProductModal() {
+    setEditingProductId('')
+    setProductForm(emptyProductForm)
+    setIsProductModalOpen(true)
+  }
+
+  function openEditProductModal(product) {
+    setEditingProductId(product.id)
+    setProductForm({
+      name: product.name,
+      cartonQty: String(product.cartonQty),
+      price: String(product.price),
+    })
+    setIsProductModalOpen(true)
+  }
+
+  function closeProductModal() {
+    setProductForm(emptyProductForm)
+    setEditingProductId('')
+    setIsProductModalOpen(false)
+  }
+
+  function saveProduct(event) {
+    event.preventDefault()
+
+    const name = productForm.name.trim()
 
     if (!name) {
       setMessage('יש להזין שם מוצר.')
       return
     }
 
-    const product = {
-      id: createId('product'),
+    const productDetails = {
       name,
-      cartonQty: Math.max(0, parseNumber(newProduct.cartonQty)),
-      price: Math.max(0, parseNumber(newProduct.price)),
-      orderQty: 0,
+      cartonQty: Math.max(0, parseNumber(productForm.cartonQty)),
+      price: Math.max(0, parseNumber(productForm.price)),
+    }
+
+    if (editingProductId) {
+      updateActiveSupplier((supplier) => ({
+        ...supplier,
+        products: supplier.products.map((product) =>
+          product.id === editingProductId ? { ...product, ...productDetails } : product,
+        ),
+      }))
+      setMessage('המוצר עודכן.')
+    } else {
+      const product = {
+        id: createId('product'),
+        ...productDetails,
+        orderQty: 0,
+      }
+
+      updateActiveSupplier((supplier) => ({
+        ...supplier,
+        products: [...supplier.products, product],
+      }))
+      setMessage('המוצר נוסף לספק הנוכחי.')
+    }
+
+    closeProductModal()
+  }
+
+  function deleteProduct(productId) {
+    if (!activeSupplier) {
+      return
+    }
+
+    const product = activeSupplier.products.find((item) => item.id === productId)
+
+    if (!product) {
+      return
+    }
+
+    if (!window.confirm(`למחוק את המוצר ${product.name}?`)) {
+      return
     }
 
     updateActiveSupplier((supplier) => ({
       ...supplier,
-      products: [...supplier.products, product],
+      products: supplier.products.filter((item) => item.id !== productId),
     }))
-    setNewProduct(emptyProductForm)
-    setIsAddProductOpen(false)
-    setMessage('המוצר נוסף לספק הנוכחי.')
-  }
 
-  function deleteProduct(productId) {
-    updateActiveSupplier((supplier) => ({
-      ...supplier,
-      products: supplier.products.filter((product) => product.id !== productId),
-    }))
+    if (editingProductId === productId) {
+      closeProductModal()
+    }
+
+    setMessage('המוצר נמחק.')
   }
 
   function resetQuantities() {
@@ -409,6 +537,9 @@ function App() {
       return
     }
 
+    const existingSuppliersByName = new Map(
+      suppliers.map((supplier) => [supplier.name.trim(), supplier]),
+    )
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'array' })
     const suppliersSheetName = workbook.SheetNames.find(
@@ -425,7 +556,14 @@ function App() {
     const importedSuppliers = supplierRows
       .filter((row) => row.some((cell) => String(cell ?? '').trim()))
       .filter((row) => !isHeaderRow(row, ['שם הספק']))
-      .map(normalizeSupplierDetails)
+      .map((row, index) => {
+        const supplier = normalizeSupplierDetails(row, index)
+        const existingSupplier = existingSuppliersByName.get(supplier.name)
+
+        return existingSupplier
+          ? { ...existingSupplier, ...supplier, id: existingSupplier.id, products: [] }
+          : supplier
+      })
       .filter((supplier) => supplier.name)
 
     const supplierMap = new Map(
@@ -434,6 +572,7 @@ function App() {
 
     workbook.SheetNames.filter((sheetName) => sheetName !== suppliersSheetName).forEach(
       (sheetName) => {
+        const supplierName = sheetName.trim()
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
           header: 1,
           defval: '',
@@ -448,20 +587,21 @@ function App() {
           return
         }
 
-        const existingSupplier = supplierMap.get(sheetName.trim())
+        const existingSupplier = supplierMap.get(supplierName)
+        const savedSupplier = existingSuppliersByName.get(supplierName)
 
         if (existingSupplier) {
           existingSupplier.products = products
           return
         }
 
-        supplierMap.set(sheetName.trim(), {
-          id: createId('supplier'),
-          name: sheetName.trim(),
-          agentName: '',
-          phone: '',
-          deliveryDay: '',
-          reminderTime: '',
+        supplierMap.set(supplierName, {
+          id: savedSupplier?.id ?? createId('supplier'),
+          name: supplierName,
+          agentName: savedSupplier?.agentName ?? '',
+          phone: savedSupplier?.phone ?? '',
+          deliveryDay: savedSupplier?.deliveryDay ?? '',
+          reminderTime: savedSupplier?.reminderTime ?? '',
           products,
         })
       },
@@ -478,7 +618,7 @@ function App() {
 
     setSuppliers(nextSuppliers)
     setActiveSupplierId(nextSuppliers[0].id)
-    setMessage(`יובאו ${nextSuppliers.length} ספקים מהאקסל.`)
+    setMessage(`רשימת המוצרים הוחלפה לפי האקסל. יובאו ${nextSuppliers.length} ספקים.`)
   }
 
   return (
@@ -506,6 +646,15 @@ function App() {
           </button>
         ))}
       </nav>
+
+      <div className="supplier-tools">
+        <button type="button" onClick={openAddSupplierModal}>
+          הוסף ספק
+        </button>
+        <button type="button" className="danger-button" onClick={deleteActiveSupplier}>
+          מחק ספק
+        </button>
+      </div>
 
       {syncStatus && <p className="sync-message">{syncStatus}</p>}
       {message && <p className="status-message">{message}</p>}
@@ -571,7 +720,7 @@ function App() {
           </div>
 
           <div className="actions-bar">
-            <button type="button" onClick={() => setIsAddProductOpen(true)}>
+            <button type="button" onClick={openAddProductModal}>
               הוסף מוצר
             </button>
             <button type="button" onClick={resetQuantities}>
@@ -633,18 +782,31 @@ function App() {
                         aria-label={`כמות להזמנה עבור ${product.name}`}
                       />
                     </td>
-                    <td>{product.name}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="product-name-button"
+                        onClick={() => openEditProductModal(product)}
+                      >
+                        {product.name}
+                      </button>
+                    </td>
                     <td className="desktop-column">{formatCurrency(product.price)}</td>
                     <td className="desktop-column">{product.cartonQty}</td>
                     <td className="desktop-column">{formatCurrency(calculateLineTotal(product))}</td>
                     <td className="desktop-column">
-                      <button
-                        type="button"
-                        className="delete-product"
-                        onClick={() => deleteProduct(product.id)}
-                      >
-                        מחק
-                      </button>
+                      <div className="row-actions">
+                        <button type="button" onClick={() => openEditProductModal(product)}>
+                          ערוך
+                        </button>
+                        <button
+                          type="button"
+                          className="delete-product"
+                          onClick={() => deleteProduct(product.id)}
+                        >
+                          מחק
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -654,31 +816,113 @@ function App() {
         </section>
       )}
 
-      {isAddProductOpen && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={closeAddProductModal}>
+      {isSupplierModalOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={closeSupplierModal}>
           <section
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="add-product-title"
+            aria-labelledby="add-supplier-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="modal-header">
-              <h2 id="add-product-title">הוספת מוצר</h2>
-              <button type="button" className="icon-button" onClick={closeAddProductModal}>
+              <h2 id="add-supplier-title">הוספת ספק</h2>
+              <button type="button" className="icon-button" onClick={closeSupplierModal}>
                 סגור
               </button>
             </div>
-            <form className="add-product-form" onSubmit={addProduct}>
+            <form className="modal-form" onSubmit={addSupplier}>
+              <label>
+                שם ספק
+                <input
+                  type="text"
+                  value={supplierForm.name}
+                  onChange={(event) =>
+                    setSupplierForm((current) => ({ ...current, name: event.target.value }))
+                  }
+                  autoFocus
+                />
+              </label>
+              <label>
+                שם סוכן
+                <input
+                  type="text"
+                  value={supplierForm.agentName}
+                  onChange={(event) =>
+                    setSupplierForm((current) => ({ ...current, agentName: event.target.value }))
+                  }
+                />
+              </label>
+              <label>
+                טלפון WhatsApp
+                <input
+                  type="tel"
+                  value={supplierForm.phone}
+                  onChange={(event) =>
+                    setSupplierForm((current) => ({ ...current, phone: event.target.value }))
+                  }
+                />
+              </label>
+              <label>
+                יום אספקה
+                <input
+                  type="text"
+                  value={supplierForm.deliveryDay}
+                  onChange={(event) =>
+                    setSupplierForm((current) => ({ ...current, deliveryDay: event.target.value }))
+                  }
+                />
+              </label>
+              <label>
+                שעה לתזכורת
+                <input
+                  type="time"
+                  value={supplierForm.reminderTime}
+                  onChange={(event) =>
+                    setSupplierForm((current) => ({ ...current, reminderTime: event.target.value }))
+                  }
+                />
+              </label>
+              <div className="modal-actions">
+                <button type="button" onClick={closeSupplierModal}>
+                  ביטול
+                </button>
+                <button type="submit" className="whatsapp-button">
+                  הוסף ספק
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {isProductModalOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={closeProductModal}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2 id="product-modal-title">
+                {editingProductId ? 'עריכת מוצר' : 'הוספת מוצר'}
+              </h2>
+              <button type="button" className="icon-button" onClick={closeProductModal}>
+                סגור
+              </button>
+            </div>
+            <form className="modal-form" onSubmit={saveProduct}>
               <label>
                 שם מוצר
                 <input
                   type="text"
-                  value={newProduct.name}
+                  value={productForm.name}
                   onChange={(event) =>
-                    setNewProduct((current) => ({ ...current, name: event.target.value }))
+                    setProductForm((current) => ({ ...current, name: event.target.value }))
                   }
-                  placeholder="שם מוצר חדש"
+                  placeholder="שם מוצר"
                   autoFocus
                 />
               </label>
@@ -688,9 +932,9 @@ function App() {
                   type="number"
                   inputMode="numeric"
                   min="0"
-                  value={newProduct.cartonQty}
+                  value={productForm.cartonQty}
                   onChange={(event) =>
-                    setNewProduct((current) => ({ ...current, cartonQty: event.target.value }))
+                    setProductForm((current) => ({ ...current, cartonQty: event.target.value }))
                   }
                 />
               </label>
@@ -701,19 +945,32 @@ function App() {
                   inputMode="decimal"
                   min="0"
                   step="0.01"
-                  value={newProduct.price}
+                  value={productForm.price}
                   onChange={(event) =>
-                    setNewProduct((current) => ({ ...current, price: event.target.value }))
+                    setProductForm((current) => ({ ...current, price: event.target.value }))
                   }
                 />
               </label>
-              <div className="modal-actions">
-                <button type="button" onClick={closeAddProductModal}>
-                  ביטול
-                </button>
-                <button type="submit" className="whatsapp-button">
-                  הוסף מוצר
-                </button>
+              <div className="modal-actions split-actions">
+                <div>
+                  {editingProduct && (
+                    <button
+                      type="button"
+                      className="danger-button"
+                      onClick={() => deleteProduct(editingProduct.id)}
+                    >
+                      מחק מוצר
+                    </button>
+                  )}
+                </div>
+                <div className="primary-actions">
+                  <button type="button" onClick={closeProductModal}>
+                    ביטול
+                  </button>
+                  <button type="submit" className="whatsapp-button">
+                    {editingProductId ? 'שמור מוצר' : 'הוסף מוצר'}
+                  </button>
+                </div>
               </div>
             </form>
           </section>
