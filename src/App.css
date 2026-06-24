@@ -87,7 +87,7 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
 .supplier-tabs button.active {
@@ -95,6 +95,14 @@ button:disabled {
   border-color: #111827;
   color: #ffffff;
   font-weight: 700;
+}
+
+.supplier-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 18px;
 }
 
 .status-message,
@@ -155,7 +163,7 @@ button:disabled {
 }
 
 .supplier-details label,
-.add-product-form label {
+.modal-form label {
   color: #475467;
   display: grid;
   gap: 6px;
@@ -227,6 +235,21 @@ select:focus {
   outline: 3px solid rgba(15, 118, 110, 0.16);
 }
 
+.product-name-button {
+  border: 0;
+  background: transparent;
+  color: #111827;
+  font-weight: 700;
+  padding: 0;
+  text-align: right;
+  width: auto;
+}
+
+.product-name-button:hover {
+  background: transparent;
+  color: #0f766e;
+}
+
 .drag-handle {
   align-items: center;
   cursor: grab;
@@ -251,11 +274,21 @@ select:focus {
   opacity: 0.55;
 }
 
-.delete-product {
+.row-actions,
+.primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.delete-product,
+.danger-button {
   color: #b42318;
 }
 
-.delete-product:hover {
+.delete-product:hover,
+.danger-button:hover {
   background: #fff1f0;
   border-color: #fda29b;
 }
@@ -293,7 +326,7 @@ select:focus {
   padding: 7px 10px;
 }
 
-.add-product-form {
+.modal-form {
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -304,6 +337,11 @@ select:focus {
   gap: 8px;
   justify-content: flex-end;
   margin-top: 4px;
+}
+
+.split-actions {
+  align-items: center;
+  justify-content: space-between;
 }
 
 @media (max-width: 900px) {
@@ -334,6 +372,16 @@ select:focus {
     display: none;
   }
 
+  .supplier-tools,
+  .actions-bar {
+    justify-content: stretch;
+  }
+
+  .supplier-tools button,
+  .actions-bar button {
+    width: 100%;
+  }
+
   .supplier-summary {
     gap: 10px;
     padding: 14px;
@@ -341,14 +389,6 @@ select:focus {
 
   .supplier-summary strong {
     font-size: 18px;
-  }
-
-  .actions-bar {
-    justify-content: stretch;
-  }
-
-  .actions-bar button {
-    width: 100%;
   }
 
   .table-wrap {
@@ -370,16 +410,26 @@ select:focus {
     width: 96px;
   }
 
+  .product-name-button {
+    line-height: 1.35;
+    width: 100%;
+  }
+
   .modal {
     max-height: calc(100vh - 36px);
     overflow-y: auto;
   }
 
-  .modal-actions {
+  .modal-actions,
+  .primary-actions,
+  .split-actions {
+    align-items: stretch;
     flex-direction: column-reverse;
   }
 
-  .modal-actions button {
+  .modal-actions button,
+  .primary-actions button,
+  .split-actions button {
     width: 100%;
   }
 
